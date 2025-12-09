@@ -1,5 +1,4 @@
 
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -61,6 +60,109 @@ def r2_quality_text(r2):
     if r2 >= 0.95:
         return "Good linearity (0.95 ≤ R² < 0.98)."
     return "Poor linearity (R² < 0.95) – adjust the energy window."
+
+
+def draw_band_diagram(Eg, title, kind="direct"):
+    """
+    Simple E–k band diagram.
+
+    kind = "direct"   -> VB max and CB min at same k (vertical transition)
+    kind = "indirect" -> CB min shifted in k (diagonal transition)
+    """
+    if not np.isfinite(Eg) or Eg <= 0:
+        return None
+
+    # k-axis (arbitrary units)
+    k = np.linspace(-2.0, 2.0, 400)
+    a = 0.3  # curvature
+
+    if kind == "direct":
+        # Valence band maximum at k = 0, energy = 0
+        Ev = -a * k**2
+        Ec = Eg + a * k**2
+
+        k_v = 0.0
+        Ev_top = 0.0
+        Ec_min = Eg
+
+        fig, ax = plt.subplots(figsize=(3, 4))
+        ax.plot(k, Ev, lw=2, label="Valence band")
+        ax.plot(k, Ec, lw=2, label="Conduction band")
+
+        # Vertical transition
+        ax.annotate(
+            "",
+            xy=(k_v, Ec_min),
+            xytext=(k_v, Ev_top),
+            arrowprops=dict(arrowstyle="<->", linewidth=1.5),
+        )
+        ax.text(
+            k_v + 0.1,
+            Eg / 2.0,
+            f"E$_g$ ≈ {Eg:.3f} eV",
+            va="center",
+            fontsize=9,
+        )
+
+        ax.set_title(title + " (direct)", fontsize=11)
+
+    else:  # indirect
+        # Valence band maximum at k = 0
+        Ev = -a * k**2
+        # Conduction band minimum shifted in k (e.g. around k = 1)
+        kc = 1.0
+        Ec = Eg + a * (k - kc)**2
+
+        k_v = 0.0        # VB max at k = 0
+        k_c = kc         # CB min at k = kc
+        Ev_top = 0.0
+        Ec_min = Eg
+
+        fig, ax = plt.subplots(figsize=(3, 4))
+        ax.plot(k, Ev, lw=2, label="Valence band")
+        ax.plot(k, Ec, lw=2, label="Conduction band")
+
+        # Diagonal transition (photon + phonon)
+        ax.annotate(
+            "",
+            xy=(k_c, Ec_min),
+            xytext=(k_v, Ev_top),
+            arrowprops=dict(arrowstyle="<->", linewidth=1.5),
+        )
+        ax.text(
+            (k_v + k_c) / 2.0 + 0.1,
+            Eg / 2.0,
+            f"E$_g$ ≈ {Eg:.3f} eV",
+            va="center",
+            fontsize=9,
+        )
+
+        # Horizontal phonon arrow along VB (change in k)
+        ax.annotate(
+            "",
+            xy=(k_c, Ev_top - 0.05 * Eg),
+            xytext=(k_v, Ev_top - 0.05 * Eg),
+            arrowprops=dict(arrowstyle="<-", linewidth=1.0),
+        )
+        ax.text(
+            (k_v + k_c) / 2.0,
+            Ev_top - 0.12 * Eg,
+            "phonon (Δk)",
+            ha="center",
+            fontsize=8,
+        )
+
+        ax.set_title(title + " (indirect)", fontsize=11)
+
+    ax.set_xlabel("k (wavevector, arb. units)")
+    ax.set_ylabel("Energy (eV)")
+    ax.set_xlim(-2.0, 2.0)
+    ax.set_ylim(-0.4 * Eg, 1.6 * Eg)
+
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+
+    return fig
 
 
 # ---------------------------------
@@ -385,10 +487,10 @@ with col_i:
         st.info("Please choose a wider range for the indirect fit (at least 3 points).")
 
 # ---------------------------------
-# Summary metrics and methods text
+# Summary metrics, band diagram, and methods text
 # ---------------------------------
 
-st.subheader("Step 7 – Summary and report text")
+st.subheader("Step 7 – Summary, band diagram, and report text")
 
 metric_cols = st.columns(2)
 with metric_cols[0]:
@@ -401,6 +503,25 @@ with metric_cols[1]:
         st.metric("Indirect Eg (allowed)", f"{Eg_i:.3f} eV")
     else:
         st.metric("Indirect Eg (allowed)", "N/A")
+
+st.markdown("### Band-gap visualisation (direct vs indirect in E–k space)")
+st.caption(
+    "Simplified band diagrams. For a direct gap, the valence-band maximum and conduction-band minimum "
+    "are at the same k, so the transition is vertical. For an indirect gap, the conduction-band minimum "
+    "is shifted in k and the transition involves both a change in energy and a change in momentum (phonon)."
+)
+
+bd_cols = st.columns(2)
+if Eg_d is not None and np.isfinite(Eg_d):
+    with bd_cols[0]:
+        fig_bd_d = draw_band_diagram(Eg_d, "Direct band gap", kind="direct")
+        if fig_bd_d is not None:
+            st.pyplot(fig_bd_d)
+if Eg_i is not None and np.isfinite(Eg_i):
+    with bd_cols[1]:
+        fig_bd_i = draw_band_diagram(Eg_i, "Indirect band gap", kind="indirect")
+        if fig_bd_i is not None:
+            st.pyplot(fig_bd_i)
 
 # Auto-generated methods paragraph
 meas_desc = {
