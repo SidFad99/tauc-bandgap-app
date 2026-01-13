@@ -240,8 +240,11 @@ else:
 st.subheader("Step 1 – Upload data")
 
 uploaded_file = st.file_uploader(
-    "Upload UV–Vis–NIR data file (CSV or TXT). The file should contain a wavelength column (nm) and one data column.",
-    type=["csv", "txt"],
+    "Upload UV–Vis–NIR data (CSV/TXT). "
+    "Your file must have exactly 2 columns: "
+    "(1) Wavelength in nm, (2) one signal column: Absorbance (A) OR Transmittance (T) OR Reflectance (R). "
+    "Numeric values only; no extra columns.",
+    type=["csv", "txt"]
 )
 
 if uploaded_file is None:
